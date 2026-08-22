@@ -1,0 +1,11 @@
+# Dependencias del prototipo auditado. No garantizan una distribución final.
+tree-sitter>=0.25,<0.27
+tree-sitter-python>=0.23
+tree-sitter-typescript>=0.23
+tree-sitter-javascript>=0.23
+pyright>=1.1
+textual>=0.80
+openai>=1.0
+pyaudio>=0.2.14
+pydub>=0.25
+pygame>=2.6

@@ -1,0 +1,40 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Entornos y cachés Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.pyright/
+
+# Audio y archivos temporales
+*.wav
+*.mp3
+*.ogg
+*.tmp
+*.log
+mimo_debug.log
+
+# Artefactos de build
+build/
+dist/
+*.spec
+*.exe
+*.msi
+
+# Entornos Node
+node_modules/
+coverage/
+
+# IDE y SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
