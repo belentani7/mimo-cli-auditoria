@@ -36,7 +36,10 @@ class ASTValidationEngine:
             lang = Language(tsjavascript.language())
         else:
             raise NotImplementedError(f"Lenguaje '{self.language}' no soportado.")
-        self.parser.set_language(lang)
+        if hasattr(self.parser, "set_language"):
+            self.parser.set_language(lang)
+        else:
+            self.parser.language = lang
 
     def validate_content(self, content: str) -> List[SyntaxError]:
         if not content.strip():
@@ -103,8 +106,6 @@ class CognitiveOrchestrator:
         return "cirujano"
 
 from ghost_state import GhostStateEngine
-from voice_stt import VoiceSTT
-from voice_tts import VoiceTTS
 
 class CLI_Coder:
     def __init__(self, repo_path: str):
@@ -112,12 +113,28 @@ class CLI_Coder:
         self.ast_engine = ASTValidationEngine()
         self.orchestrator = CognitiveOrchestrator()
         self.ghost_engine = GhostStateEngine(repo_path)
+        self.stt = None
+        self.tts = None
+        self.max_auto_heals = 3
+
+    def _load_voice(self):
+        """Carga diferida de STT/TTS: las dependencias de voz son opcionales."""
+        if self.stt is not None and self.tts is not None:
+            return
+        try:
+            from voice_stt import VoiceSTT
+            from voice_tts import VoiceTTS
+        except ImportError as exc:
+            raise RuntimeError(
+                f"Voz no disponible (dependencia opcional ausente: {exc}). "
+                "Instale requirements-prototype.txt para activar STT/TTS."
+            ) from exc
         self.stt = VoiceSTT()
         self.tts = VoiceTTS()
-        self.max_auto_heals = 3
 
     def listen_and_process(self):
         """Escucha la voz del usuario y la procesa."""
+        self._load_voice()
         audio_file = self.stt.record_audio()
         text = self.stt.transcribe(audio_file)
         logger.info(f"Usuario dijo: {text}")
@@ -125,6 +142,7 @@ class CLI_Coder:
 
     def speak_response(self, text):
         """Responde con voz humana."""
+        self._load_voice()
         self.tts.speak(text)
 
     def auto_heal_loop(self, file_path: str, search: str, replace: str):

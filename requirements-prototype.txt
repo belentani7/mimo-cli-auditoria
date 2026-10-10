@@ -5,6 +5,9 @@ tree-sitter-typescript>=0.23
 tree-sitter-javascript>=0.23
 pyright>=1.1
 textual>=0.80
+
+# Opcionales (voz): solo para STT/TTS. El núcleo las carga en diferido y
+# sin ellas emite un error claro al usar listen_and_process/speak_response.
 openai>=1.0
 pyaudio>=0.2.14
 pydub>=0.25

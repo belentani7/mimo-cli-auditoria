@@ -25,7 +25,10 @@ class RepoGraph:
             for file_path in self.root_dir.rglob(f"*{ext}"):
                 relative_path = str(file_path.relative_to(self.root_dir))
                 lang = self.languages[ext]
-                self.parser.set_language(lang)
+                if hasattr(self.parser, "set_language"):
+                    self.parser.set_language(lang)
+                else:
+                    self.parser.language = lang
                 self.graph[relative_path] = self._extract_entities(file_path, lang)
 
     def _extract_entities(self, file_path: Path, lang: Language) -> Set[str]:

@@ -29,7 +29,7 @@ python -m venv .venv
 # Windows PowerShell
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements-prototype.txt
-python -m py_compile src/*.py
+python -m compileall -q src
 ```
 
 > No se incluyen claves de API. Las configuraciones futuras deben usar variables de entorno y un archivo `.env.example`, nunca secretos versionados.
@@ -38,9 +38,15 @@ python -m py_compile src/*.py
 
 ```bash
 python tests/audit_functional.py
+python tests/test_core_sin_voz.py
 ```
 
-La prueba puede fallar si no están instaladas las dependencias de AST y voz. Ese resultado forma parte del diagnóstico: el núcleo acopla módulos opcionales de voz durante la importación. La reconstrucción debe sustituir dicho acoplamiento por interfaces y carga diferida.
+`audit_functional.py` valida la edición transaccional con AST y la selección de modo
+cognitivo. `test_core_sin_voz.py` comprueba que el núcleo se importa e instancia sin
+las dependencias opcionales de voz (carga diferida): si STT/TTS no están instalados,
+`listen_and_process`/`speak_response` fallan con un `RuntimeError` explicativo en lugar
+de romper la importación del módulo. Las dependencias de voz siguen siendo necesarias
+para usar esas dos funciones.
 
 ## Ruta de reconstrucción recomendada
 
