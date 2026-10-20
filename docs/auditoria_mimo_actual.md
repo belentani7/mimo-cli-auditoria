@@ -21,6 +21,12 @@ La implementación disponible es un **prototipo parcial**, no un CLI Coder funci
 | Gestor de Git | Riesgoso y parcial | `git add .` y `git reset --hard HEAD~1` pueden afectar cambios del usuario; faltan comprobaciones, ramas por tarea y confirmaciones. |
 | Empaquetado Windows 11 | Fallido | Los logs del build muestran bootloader `Linux-64bit-intel`; el binario generado es Linux ELF, no un ejecutable Windows. |
 
+## Correcciones verificadas después de esta auditoría
+
+- `GitManager.commit` exige rutas explícitas, impide rutas fuera del repositorio y usa pathspec literal; `rollback` exige confirmación y crea un `git revert` en vez de reescribir historial.
+- Las dependencias de voz se separan en `requirements-voice.txt`; instalar el prototipo base no instala PyAudio ni inicializa voz.
+- Se añadieron pruebas de seguridad de Git y un workflow para ejecutar compilación, pruebas de auditoría y smoke tests.
+
 ## Problemas de arquitectura prioritarios
 
 | Prioridad | Corrección necesaria | Motivo |
