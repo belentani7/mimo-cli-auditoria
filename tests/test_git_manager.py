@@ -14,7 +14,8 @@ class GitManagerSafetyTests(unittest.TestCase):
         self._run_git("config", "user.email", "tests@example.invalid")
         self._run_git("config", "user.name", "GitManager tests")
         (self.repo_path / "tracked.txt").write_text("base\n", encoding="utf-8")
-        self._run_git("add", "--", "tracked.txt")
+        (self.repo_path / "other.txt").write_text("base\n", encoding="utf-8")
+        self._run_git("add", "--", "tracked.txt", "other.txt")
         self._run_git("commit", "-m", "initial")
 
     def tearDown(self) -> None:
@@ -37,7 +38,7 @@ class GitManagerSafetyTests(unittest.TestCase):
             GitManager(str(self.repo_path)).commit("must not stage everything")
 
         self.assertEqual("", self._run_git("diff", "--cached", "--name-only"))
-        self.assertEqual(" M tracked.txt", self._run_git("status", "--porcelain"))
+        self.assertEqual("M tracked.txt", self._run_git("status", "--porcelain"))
 
     def test_commit_stages_only_selected_paths(self) -> None:
         (self.repo_path / "tracked.txt").write_text("selected\n", encoding="utf-8")
@@ -69,7 +70,7 @@ class GitManagerSafetyTests(unittest.TestCase):
         self.assertEqual(original_head, self._run_git("rev-parse", "HEAD"))
         manager.rollback(confirm=True)
 
-        self.assertEqual(3, len(self._run_git("rev-list", "--count", "HEAD").splitlines()))
+        self.assertEqual(3, int(self._run_git("rev-list", "--count", "HEAD")))
         self.assertFalse((self.repo_path / "added.txt").exists())
         self.assertEqual("", self._run_git("status", "--porcelain"))
 
