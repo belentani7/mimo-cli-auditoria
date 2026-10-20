@@ -32,6 +32,8 @@ pip install -r requirements-prototype.txt
 python -m compileall -q src
 ```
 
+La voz es opcional y se instala por separado con `pip install -r requirements-voice.txt`. Sin ese archivo, el núcleo sigue importándose y muestra un error claro al solicitar STT/TTS.
+
 > No se incluyen claves de API. Las configuraciones futuras deben usar variables de entorno y un archivo `.env.example`, nunca secretos versionados.
 
 ## Pruebas disponibles
@@ -47,6 +49,10 @@ las dependencias opcionales de voz (carga diferida): si STT/TTS no están instal
 `listen_and_process`/`speak_response` fallan con un `RuntimeError` explicativo en lugar
 de romper la importación del módulo. Las dependencias de voz siguen siendo necesarias
 para usar esas dos funciones.
+
+## Operaciones Git seguras
+
+`src/git_manager.py` es una utilidad de prototipo que aún no está conectada al flujo principal. `commit(message, paths=[...])` exige rutas explícitas y solo añade esas rutas. `rollback(confirm=True)` crea un commit con `git revert`, preservando el historial; sin confirmación se rechaza.
 
 ## Ruta de reconstrucción recomendada
 
