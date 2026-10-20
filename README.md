@@ -22,7 +22,7 @@ Consulta [`docs/auditoria_mimo_actual.md`](docs/auditoria_mimo_actual.md) para l
 
 ## Requisitos para inspeccionar el prototipo
 
-Se recomienda Python 3.11 o superior. El prototipo tiene dependencias opcionales que aún deben desacoplarse para ser instalable de manera fiable:
+Se recomienda Python 3.11 o superior. Las dependencias del parser, análisis estático y TUI se instalan desde `requirements-prototype.txt`:
 
 ```bash
 python -m venv .venv
@@ -41,6 +41,7 @@ La voz es opcional y se instala por separado con `pip install -r requirements-vo
 ```bash
 python tests/audit_functional.py
 python tests/test_core_sin_voz.py
+python -m unittest discover -s tests -p "test_git_manager.py" -v
 ```
 
 `audit_functional.py` valida la edición transaccional con AST y la selección de modo
