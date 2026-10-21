@@ -57,16 +57,19 @@ class GitManager:
         return validated
 
     def commit(self, message: str, paths: list[str] | None = None) -> None:
-        if not message.strip():
+        if not isinstance(message, str) or not message.strip():
             raise ValueError("El mensaje del commit no puede estar vacío")
         selected_paths = self._validated_paths(paths)
         logger.info("Creando commit con %d rutas seleccionadas", len(selected_paths))
         self._run_git(["--literal-pathspecs", "add", "--", *selected_paths])
-        self._run_git(["commit", "-m", message])
+        # Only selected paths: an unrelated file could already be staged in the index.
+        self._run_git(["--literal-pathspecs", "commit", "--only", "-m", message, "--", *selected_paths])
 
     def rollback(self, *, confirm: bool = False) -> None:
         if not confirm:
             raise PermissionError("La reversión requiere confirm=True y crea un commit git revert")
+        if self._run_git(["status", "--porcelain"]):
+            raise RuntimeError("Debe guardar o limpiar sus cambios antes de revertir un commit")
         logger.warning("Revirtiendo el último commit mediante git revert")
         self._run_git(["revert", "--no-edit", "HEAD"])
 
