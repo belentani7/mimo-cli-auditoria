@@ -41,7 +41,7 @@ La voz es opcional y se instala por separado con `pip install -r requirements-vo
 ```bash
 python tests/audit_functional.py
 python tests/test_core_sin_voz.py
-python -m unittest discover -s tests -p "test_git_manager.py" -v
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 `audit_functional.py` valida la edición transaccional con AST y la selección de modo
@@ -53,7 +53,7 @@ para usar esas dos funciones.
 
 ## Operaciones Git seguras
 
-`src/git_manager.py` es una utilidad de prototipo que aún no está conectada al flujo principal. `commit(message, paths=[...])` exige rutas explícitas y solo añade esas rutas. `rollback(confirm=True)` crea un commit con `git revert`, preservando el historial; sin confirmación se rechaza.
+`src/git_manager.py` es una utilidad de prototipo que aún no está conectada al flujo principal. `commit(message, paths=[...])` exige rutas explícitas y utiliza `git commit --only` para **no incluir archivos ya preparados en el índice**. `rollback(confirm=True)` crea un commit con `git revert` solo si el árbol de trabajo está limpio, preservando el historial; sin confirmación se rechaza. `GhostStateEngine.run_analysis()` ahora falla explícitamente si Pyright no existe o devuelve resultados inválidos: un error de análisis estático nunca se interpreta como una validación correcta.
 
 ## Ruta de reconstrucción recomendada
 
