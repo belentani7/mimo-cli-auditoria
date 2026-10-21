@@ -30,4 +30,4 @@ jobs:
       - name: Verify core without voice dependencies
         run: python tests/test_core_sin_voz.py
       - name: Safe Git manager tests
-        run: python -m unittest discover -s tests -p "test_git_manager.py" -v
+        run: python -m unittest discover -s tests -p "test_*.py" -v
