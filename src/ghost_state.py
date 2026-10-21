@@ -1,47 +1,56 @@
-import subprocess
-import json
-import logging
-from pathlib import Path
-from typing import List, Dict, Any
+"""Fail-closed Pyright adapter for a locally authorized repository."""
+from __future__ import annotations
 
-logger = logging.getLogger("GhostState")
+import json
+import subprocess
+from pathlib import Path
+from typing import Any
+
 
 class GhostStateEngine:
     def __init__(self, project_root: str):
-        self.project_root = Path(project_root)
+        self.project_root = Path(project_root).resolve()
 
-    def run_analysis(self, target_file: str) -> List[Dict[str, Any]]:
-        """Ejecuta pyright para obtener el estado fantasma (errores de tipo)."""
+    def run_analysis(self, target_file: str) -> list[dict[str, Any]]:
+        target = (self.project_root / target_file).resolve()
+        if not target.is_relative_to(self.project_root) or not target.is_file():
+            raise ValueError("Target for static analysis must be a file inside the repository")
         try:
-            # Ejecutar pyright en modo JSON
-            cmd = ["pyright", "--outputjson", str(self.project_root / target_file)]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(
+                ["pyright", "--outputjson", str(target)],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RuntimeError("Pyright did not execute; static validation cannot be assumed successful") from exc
 
-            # Pyright devuelve código de salida > 0 si hay errores, pero el JSON es válido
-            if not result.stdout:
-                return []
-
+        if result.returncode not in (0, 1) or not result.stdout.strip():
+            raise RuntimeError("Pyright failed without parseable diagnostics; file must not be committed")
+        try:
             data = json.loads(result.stdout)
-            diagnostics = data.get("generalDiagnostics", [])
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise RuntimeError("Pyright did not return valid JSON diagnostics") from exc
+        if not isinstance(data, dict) or not isinstance(data.get("generalDiagnostics"), list):
+            raise RuntimeError("Pyright output did not include generalDiagnostics")
+        diagnostics = []
+        for item in data["generalDiagnostics"]:
+            if not isinstance(item, dict):
+                raise RuntimeError("Malformed Pyright diagnostic")
+            position = item.get("range", {}).get("start", {}).get("line", 0)
+            diagnostics.append({
+                "line": position + 1,
+                "message": str(item.get("message", "Unknown static analysis issue")),
+                "severity": str(item.get("severity", "error")),
+            })
+        return diagnostics
 
-            # Filtrar solo errores y advertencias relevantes
-            ghost_errors = []
-            for diag in diagnostics:
-                ghost_errors.append({
-                    "line": diag["range"]["start"]["line"] + 1,
-                    "message": diag["message"],
-                    "severity": diag["severity"]
-                })
-            return ghost_errors
-        except Exception as e:
-            logger.error(f"Error al ejecutar análisis fantasma: {e}")
-            return []
-
-    def format_for_llm(self, errors: List[Dict[str, Any]]) -> str:
+    def format_for_llm(self, errors: list[dict[str, Any]]) -> str:
         if not errors:
-            return "✅ ESTADO_FANTASMA: No se detectaron errores de tipo."
-
-        feedback = "👻 ESTADO_FANTASMA (Análisis Estático):\n"
-        for err in errors[:5]: # Limitar para no saturar
-            feedback += f"- Línea {err['line']} [{err['severity'].upper()}]: {err['message']}\n"
+            return "ESTADO_FANTASMA: No se detectaron errores de tipo."
+        feedback = "ESTADO_FANTASMA (Análisis Estático):\n"
+        for error in errors[:5]:
+            feedback += f"- Línea {error['line']} [{error['severity'].upper()}]: {error['message']}\n"
         return feedback
