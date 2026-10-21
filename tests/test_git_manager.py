@@ -2,7 +2,10 @@ import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+import sys
 
+# Resolve src from test location, irrespective of the execution cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from git_manager import GitManager
 
 
@@ -73,6 +76,34 @@ class GitManagerSafetyTests(unittest.TestCase):
         self.assertEqual(3, int(self._run_git("rev-list", "--count", "HEAD")))
         self.assertFalse((self.repo_path / "added.txt").exists())
         self.assertEqual("", self._run_git("status", "--porcelain"))
+
+
+    def test_does_not_commit_unrelated_staged_files(self) -> None:
+        (self.repo_path / "tracked.txt").write_text("only selected\n", encoding="utf-8")
+        (self.repo_path / "other.txt").write_text("private staged change\n", encoding="utf-8")
+        self._run_git("add", "--", "other.txt")
+        GitManager(str(self.repo_path)).commit("only selected file", paths=["tracked.txt"])
+        committed = self._run_git("show", "--pretty=format:", "--name-only", "HEAD").splitlines()
+        staged = self._run_git("diff", "--cached", "--name-only").splitlines()
+        self.assertEqual(["tracked.txt"], committed)
+        self.assertEqual(["other.txt"], staged)
+
+    def test_roll_back_rejects_dirty_working_directory(self) -> None:
+        (self.repo_path / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+        head = self._run_git("rev-parse", "HEAD")
+        with self.assertRaises(RuntimeError):
+            GitManager(str(self.repo_path)).rollback(confirm=True)
+        self.assertEqual(head, self._run_git("rev-parse", "HEAD"))
+
+    def test_new_file_does_not_commit_existing_staged_file(self) -> None:
+        (self.repo_path / "new.txt").write_text("new\n", encoding="utf-8")
+        (self.repo_path / "other.txt").write_text("other staged\n", encoding="utf-8")
+        self._run_git("add", "--", "other.txt")
+        GitManager(str(self.repo_path)).commit("new file", paths=["new.txt"])
+        committed = self._run_git("show", "--pretty=format:", "--name-only", "HEAD").splitlines()
+        staged = self._run_git("diff", "--cached", "--name-only").splitlines()
+        self.assertEqual(["new.txt"], committed)
+        self.assertEqual(["other.txt"], staged)
 
 
 if __name__ == "__main__":
