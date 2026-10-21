@@ -1,0 +1,33 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mimo-cli-auditoria-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install prototype dependencies
+        run: python -m pip install -r requirements-prototype.txt
+      - name: Compile sources and tests
+        run: python -m compileall -q src tests
+      - name: Audit functional smoke test
+        run: python tests/audit_functional.py
+      - name: Verify core without voice dependencies
+        run: python tests/test_core_sin_voz.py
+      - name: Safe Git manager tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v

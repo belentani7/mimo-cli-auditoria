@@ -22,7 +22,7 @@ Consulta [`docs/auditoria_mimo_actual.md`](docs/auditoria_mimo_actual.md) para l
 
 ## Requisitos para inspeccionar el prototipo
 
-Se recomienda Python 3.11 o superior. El prototipo tiene dependencias opcionales que aún deben desacoplarse para ser instalable de manera fiable:
+Se recomienda Python 3.11 o superior. Las dependencias del parser, análisis estático y TUI se instalan desde `requirements-prototype.txt`:
 
 ```bash
 python -m venv .venv
@@ -32,6 +32,8 @@ pip install -r requirements-prototype.txt
 python -m compileall -q src
 ```
 
+La voz es opcional y se instala por separado con `pip install -r requirements-voice.txt`. Sin ese archivo, el núcleo sigue importándose y muestra un error claro al solicitar STT/TTS.
+
 > No se incluyen claves de API. Las configuraciones futuras deben usar variables de entorno y un archivo `.env.example`, nunca secretos versionados.
 
 ## Pruebas disponibles
@@ -39,6 +41,7 @@ python -m compileall -q src
 ```bash
 python tests/audit_functional.py
 python tests/test_core_sin_voz.py
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 `audit_functional.py` valida la edición transaccional con AST y la selección de modo
@@ -47,6 +50,10 @@ las dependencias opcionales de voz (carga diferida): si STT/TTS no están instal
 `listen_and_process`/`speak_response` fallan con un `RuntimeError` explicativo en lugar
 de romper la importación del módulo. Las dependencias de voz siguen siendo necesarias
 para usar esas dos funciones.
+
+## Operaciones Git seguras
+
+`src/git_manager.py` es una utilidad de prototipo que aún no está conectada al flujo principal. `commit(message, paths=[...])` exige rutas explícitas y utiliza `git commit --only` para **no incluir archivos ya preparados en el índice**. `rollback(confirm=True)` crea un commit con `git revert` solo si el árbol de trabajo está limpio, preservando el historial; sin confirmación se rechaza. `GhostStateEngine.run_analysis()` ahora falla explícitamente si Pyright no existe o devuelve resultados inválidos: un error de análisis estático nunca se interpreta como una validación correcta.
 
 ## Ruta de reconstrucción recomendada
 

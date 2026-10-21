@@ -127,7 +127,7 @@ class CLI_Coder:
         except ImportError as exc:
             raise RuntimeError(
                 f"Voz no disponible (dependencia opcional ausente: {exc}). "
-                "Instale requirements-prototype.txt para activar STT/TTS."
+                "Instale requirements-voice.txt para activar STT/TTS."
             ) from exc
         self.stt = VoiceSTT()
         self.tts = VoiceTTS()

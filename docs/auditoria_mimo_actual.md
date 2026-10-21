@@ -9,7 +9,7 @@ La implementación disponible es un **prototipo parcial**, no un CLI Coder funci
 | Verificación | Resultado | Evidencia |
 |---|---:|---|
 | Sintaxis Python de los módulos | Aprobada | `python3 -m py_compile` completó sin errores. |
-| Importación y prueba funcional del núcleo | Fallida | `CLI_Coder` importa módulos de voz de forma obligatoria; la ejecución se interrumpe por `ModuleNotFoundError: pyaudio`. |
+| Importación y prueba funcional del núcleo | Mitigada; CI pendiente | STT/TTS se cargan bajo demanda y `test_core_sin_voz.py` verifica el error explicativo cuando no están instalados; la CI nueva ejecutará esta prueba con las dependencias base. |
 | Motor AST aislado | Parcial | La lógica de `SEARCH/REPLACE` existe, pero se bloquea la prueba al importar el núcleo completo. |
 | Bucle de auto-sanación | Fallido | Llama a `self.ast_engine.generate_llm_feedback`, método inexistente en `ASTValidationEngine`. Tampoco llama a ningún modelo para generar un parche corregido. |
 | Integración de modelo Mimo | No implementada | No existe cliente, adaptador, autenticación, streaming ni herramienta de llamada al modelo Mimo. |
@@ -18,15 +18,21 @@ La implementación disponible es un **prototipo parcial**, no un CLI Coder funci
 | Grafo de dependencias | Insuficiente | Extrae etiquetas genéricas; no resuelve símbolos, aristas de llamadas, rutas, subgrafos ni selección de contexto. |
 | LLM local/OpenAI | Simulado | El conector devuelve cadenas fijas en vez de solicitudes reales. |
 | Pruebas en sandbox | No implementadas | Hay un lanzador simple, sin aislamiento, límites de recursos, cancelación, normalización de errores ni realimentación al agente. |
-| Gestor de Git | Riesgoso y parcial | `git add .` y `git reset --hard HEAD~1` pueden afectar cambios del usuario; faltan comprobaciones, ramas por tarea y confirmaciones. |
+| Gestor de Git | Endurecido; 4 pruebas locales pasan | `commit` requiere rutas explícitas dentro del repositorio; `rollback` exige confirmación y crea un commit `git revert` sin reescribir historial. |
 | Empaquetado Windows 11 | Fallido | Los logs del build muestran bootloader `Linux-64bit-intel`; el binario generado es Linux ELF, no un ejecutable Windows. |
+
+## Correcciones verificadas después de esta auditoría
+
+- `GitManager.commit` exige rutas explícitas, impide rutas fuera del repositorio y usa pathspec literal; `rollback` exige confirmación y crea un `git revert` en vez de reescribir historial.
+- Las dependencias de voz se separan en `requirements-voice.txt`; instalar el prototipo base no instala PyAudio ni inicializa voz.
+- Se añadieron pruebas de seguridad de Git y un workflow para ejecutar compilación, pruebas de auditoría y smoke tests.
 
 ## Problemas de arquitectura prioritarios
 
 | Prioridad | Corrección necesaria | Motivo |
 |---:|---|---|
 | P0 | Obtener la interfaz real de Mimo (repositorio, CLI existente, endpoint u API). | Sin ella, no es posible mejorar Mimo: solo puede construirse un proyecto paralelo. |
-| P0 | Convertir el núcleo en una arquitectura desacoplada y con interfaces. | Las dependencias opcionales de voz impiden incluso importar el motor de edición. |
+| P0 | Conectar el núcleo a una interfaz real de Mimo y desacoplar los adaptadores pendientes. | La voz ya se carga de forma opcional; el núcleo sigue siendo un prototipo sin integración externa. |
 | P0 | Implementar un adaptador de LLM real y un protocolo de herramientas tipado. | Hoy no existe bucle agente-modelo-herramienta. |
 | P0 | Diseñar pruebas automatizadas para AST, aplicación de parche, seguridad de rutas, selección de contexto y adaptador LLM. | La calidad no es verificable sin ellas. |
 | P1 | Reemplazar el grafo genérico por índice de símbolos y aristas navegables. | Es imprescindible para el contexto quirúrgico solicitado. |
