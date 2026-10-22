@@ -106,6 +106,7 @@ class CognitiveOrchestrator:
         return "cirujano"
 
 from ghost_state import GhostStateEngine
+from transactional_edit import apply_verified_edit, resolve_source
 
 class CLI_Coder:
     def __init__(self, repo_path: str):
@@ -115,7 +116,7 @@ class CLI_Coder:
         self.ghost_engine = GhostStateEngine(repo_path)
         self.stt = None
         self.tts = None
-        self.max_auto_heals = 3
+        self.max_auto_heals = 1  # No model-backed patch regeneration is implemented
 
     def _load_voice(self):
         """Carga diferida de STT/TTS: las dependencias de voz son opcionales."""
@@ -145,46 +146,33 @@ class CLI_Coder:
         self._load_voice()
         self.tts.speak(text)
 
-    def auto_heal_loop(self, file_path: str, search: str, replace: str):
-        """Bucle de auto-sanación: Valida AST y Estado Fantasma."""
-        retries = 0
-        current_search = search
-        current_replace = replace
+    def auto_heal_loop(self, file_path: str, search: str, replace: str) -> bool:
+        """Propose one AST-checked edit; commit only after isolated static validation.
 
-        while retries < self.max_auto_heals:
-            logger.info(f"Intento de auto-sanación {retries + 1}/{self.max_auto_heals}")
-
-            # 1. Validar AST
-            original = (self.repo_path / file_path).read_text()
-            ast_result = self.ast_engine.apply_search_replace(original, current_search, current_replace)
-
-            if ast_result["status"] == "REJECTED":
-                feedback = self.ast_engine.generate_llm_feedback(ast_result)
-                logger.warning(f"AST falló. Feedback: {feedback}")
-                # Aquí se llamaría al LLM con el feedback para obtener nuevos current_search/replace
-                retries += 1
-                continue
-
-            # 2. Validar Estado Fantasma (Análisis Estático)
-            # Aplicar temporalmente para analizar
-            temp_content = ast_result["new_content"]
-            (self.repo_path / file_path).write_text(temp_content)
-
-            ghost_errors = self.ghost_engine.run_analysis(file_path)
-            if ghost_errors:
-                feedback = self.ghost_engine.format_for_llm(ghost_errors)
-                logger.warning(f"Estado Fantasma falló. Feedback: {feedback}")
-                # Revertir y reintentar con LLM
-                (self.repo_path / file_path).write_text(original)
-                retries += 1
-                continue
-
-            # Éxito total
-            logger.info("✅ Auto-sanación completada con éxito.")
-            return True
-
-        logger.error("❌ Se agotaron los reintentos de auto-sanación.")
-        return False
+        No model is connected to regenerate failing patches, so retries are
+        intentionally disabled rather than pretending to auto-heal.
+        """
+        try:
+            target = resolve_source(self.repo_path, file_path)
+            original = target.read_text(encoding="utf-8")
+            ast_result = self.ast_engine.apply_search_replace(original, search, replace)
+            if ast_result["status"] != "ACCEPTED":
+                logger.warning(
+                    "AST refused candidate: %s", ast_result.get("reason", "invalid syntax")
+                )
+                return False
+            approved = apply_verified_edit(
+                self.repo_path,
+                file_path,
+                ast_result["new_content"],
+                analyze=self.ghost_engine.run_analysis,
+            )
+            if not approved:
+                logger.warning("Static analysis rejected the candidate; source unchanged")
+            return approved
+        except (OSError, UnicodeError, ValueError, RuntimeError) as exc:
+            logger.error("Candidate was not committed: %s", exc)
+            return False
 
     def master_reasoning_loop(self, task: str):
         """Implementa el razonamiento de Sistema 2 (God-Tier 10/10)."""
