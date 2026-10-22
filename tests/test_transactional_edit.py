@@ -54,6 +54,12 @@ class TransactionalEditTests(unittest.TestCase):
         self.assertEqual("answer = 1\n", self.source.read_text())
         self.assertEqual([], self.candidates())
 
+    def test_empty_analyzer_result_is_not_approval(self):
+        with self.assertRaisesRegex(RuntimeError, "no usable diagnostic"):
+            apply_verified_edit(self.root, "module.py", "answer = 2\n", lambda _: None)
+        self.assertEqual("answer = 1\n", self.source.read_text())
+        self.assertEqual([], self.candidates())
+
     def test_concurrent_change_aborts_instead_of_overwriting_it(self):
         def concurrent(_):
             self.source.write_text("external editor was here\n", encoding="utf-8")
