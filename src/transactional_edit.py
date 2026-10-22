@@ -65,6 +65,8 @@ def apply_verified_edit(
         os.chmod(candidate, stat.S_IMODE(source_stat.st_mode))
 
         diagnostics = analyze(candidate.relative_to(root).as_posix())
+        if not isinstance(diagnostics, list):
+            raise RuntimeError("Static analyzer returned no usable diagnostic result")
         if diagnostics:
             return False
 
