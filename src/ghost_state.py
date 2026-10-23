@@ -6,16 +6,15 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from transactional_edit import resolve_source
+
 
 class GhostStateEngine:
     def __init__(self, project_root: str):
         self.project_root = Path(project_root).resolve()
 
     def run_analysis(self, target_file: str) -> list[dict[str, Any]]:
-        candidate = self.project_root / target_file
-        target = candidate.resolve()
-        if (candidate.is_symlink() or not target.is_relative_to(self.project_root) or not target.is_file()):
-            raise ValueError("Target for static analysis must be a regular, non-symlink file inside the repository")
+        target = resolve_source(self.project_root, target_file)
         try:
             result = subprocess.run(
                 ["pyright", "--outputjson", str(target)],
