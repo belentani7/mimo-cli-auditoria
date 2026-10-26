@@ -18,11 +18,18 @@ def resolve_source(root_dir: str | Path, relative: str) -> Path:
     if (not relative or rel.is_absolute() or ".." in rel.parts
             or ".git" in rel.parts):
         raise ValueError("Source path must be a regular file inside the repository")
-    target = root / rel
-    if target.is_symlink() or not target.is_file():
-        raise ValueError("Only regular, non-symlink source files can be edited")
-    if not target.resolve(strict=True).is_relative_to(root):
+    target = root
+    for component in rel.parts:
+        target = target / component
+        # Checking only the final component lets aliases to .git/ bypass
+        # the protected-path rule, even when the alias stays inside root.
+        if target.is_symlink():
+            raise ValueError("Symlinked source path components are not allowed")
+    resolved = target.resolve(strict=True)
+    if not resolved.is_relative_to(root):
         raise ValueError("Source file escapes the selected repository")
+    if ".git" in resolved.relative_to(root).parts or not target.is_file():
+        raise ValueError("Only regular source files outside Git metadata can be edited")
     return target
 
 
@@ -70,6 +77,9 @@ def apply_verified_edit(
         if diagnostics:
             return False
 
+        # Revalidate path components after invoking an external analyzer.
+        # This is not a replacement for OS-level multi-process locking.
+        resolve_source(root, relative)
         current_stat = target.stat(follow_symlinks=False)
         if (target.is_symlink()
                 or current_stat.st_ino != source_stat.st_ino

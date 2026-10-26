@@ -6,15 +6,15 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from transactional_edit import resolve_source
+
 
 class GhostStateEngine:
     def __init__(self, project_root: str):
         self.project_root = Path(project_root).resolve()
 
     def run_analysis(self, target_file: str) -> list[dict[str, Any]]:
-        target = (self.project_root / target_file).resolve()
-        if not target.is_relative_to(self.project_root) or not target.is_file():
-            raise ValueError("Target for static analysis must be a file inside the repository")
+        target = resolve_source(self.project_root, target_file)
         try:
             result = subprocess.run(
                 ["pyright", "--outputjson", str(target)],
@@ -35,6 +35,12 @@ class GhostStateEngine:
             raise RuntimeError("Pyright did not return valid JSON diagnostics") from exc
         if not isinstance(data, dict) or not isinstance(data.get("generalDiagnostics"), list):
             raise RuntimeError("Pyright output did not include generalDiagnostics")
+        if result.returncode != 0 and not data["generalDiagnostics"]:
+            raise RuntimeError("Pyright exited with errors but provided no diagnostics; cannot approve edit")
+        summary = data.get("summary")
+        if isinstance(summary, dict):
+            if summary.get("errorCount", 0) and not data["generalDiagnostics"]:
+                raise RuntimeError("Pyright reported errors without diagnostics; cannot approve edit")
         diagnostics = []
         for item in data["generalDiagnostics"]:
             if not isinstance(item, dict):

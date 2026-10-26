@@ -51,5 +51,30 @@ class GhostStateTests(unittest.TestCase):
                 self.engine.run_analysis("example.py")
 
 
+    def test_pyright_error_exit_with_empty_diagnostics_never_approves_edit(self):
+        raw = '{"generalDiagnostics":[]}'
+        with patch("ghost_state.subprocess.run", return_value=subprocess.CompletedProcess([], 1, stdout=raw)):
+            with self.assertRaisesRegex(RuntimeError, "provided no diagnostics"):
+                self.engine.run_analysis("example.py")
+
+    def test_pyright_summary_errors_without_diagnostics_do_not_pass(self):
+        raw = '{"generalDiagnostics":[],"summary":{"errorCount":2}}'
+        with patch("ghost_state.subprocess.run", return_value=subprocess.CompletedProcess([], 0, stdout=raw)):
+            with self.assertRaisesRegex(RuntimeError, "reported errors"):
+                self.engine.run_analysis("example.py")
+
+    def test_symlink_input_is_rejected_without_running_pyright(self):
+        link = self.path / "alias.py"
+        try:
+            link.symlink_to(self.path / "example.py")
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks unsupported")
+        with patch("ghost_state.subprocess.run") as task:
+            with self.assertRaises(ValueError):
+                self.engine.run_analysis("alias.py")
+            task.assert_not_called()
+
+
+
 if __name__ == "__main__":
     unittest.main()
