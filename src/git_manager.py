@@ -49,8 +49,21 @@ class GitManager:
             candidate = Path(raw_path)
             if candidate.is_absolute() or not candidate.parts or ".." in candidate.parts or ".git" in candidate.parts:
                 raise ValueError(f"Ruta no permitida: {raw_path}")
-            if not (root / candidate).resolve().is_relative_to(root):
+            target = root / candidate
+            if not target.resolve().is_relative_to(root):
                 raise ValueError(f"La ruta sale del repositorio: {raw_path}")
+            # An explicit directory still recursively stages everything beneath it,
+            # potentially including unrelated user files or secrets. Reject it.
+            # Deleted tracked files remain allowed so removals can be committed.
+            if target.is_dir():
+                raise ValueError(f"Seleccione archivos concretos, no directorios: {raw_path}")
+            # Git treats a symlink as an index entry; aliases (including to .git)
+            # must not bypass the explicit-file policy.
+            component = root
+            for part in candidate.parts:
+                component = component / part
+                if component.is_symlink():
+                    raise ValueError(f"No se permiten rutas simbólicas: {raw_path}")
             normalized = candidate.as_posix()
             if normalized not in validated:
                 validated.append(normalized)
